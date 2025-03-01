@@ -617,7 +617,7 @@ def main():
     
     try:
         # Run the scraping process
-        scraper.scrape_all_communities(max_pages=1)
+        scraper.scrape_all_communities(max_pages=200)
         
         # Save the data
         scraper.save_to_csv()
