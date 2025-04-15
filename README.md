@@ -13,3 +13,13 @@ Install requirements
 pip install -r requirements.txt
 ```
 
+The link to scrape is:
+
+```
+https://whop.com/discover/leaderboards/c/trading/p/{page_num}/
+```
+
+i.e
+
+https://whop.com/discover/leaderboards/c/trading/p/1
+
