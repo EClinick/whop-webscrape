@@ -2,6 +2,9 @@ import time
 import csv
 import random
 import re
+import os
+import json
+import asyncio
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
@@ -12,8 +15,16 @@ from selenium.common.exceptions import TimeoutException, NoSuchElementException,
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.common.keys import Keys
 
+# Import the login handler
+import login_handler
+
+# Ensure data directory exists
+DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
+os.makedirs(DATA_DIR, exist_ok=True)
+COOKIES_FILE = os.path.join(DATA_DIR, "whop_cookies.json")
+
 class WhopTradingScraper:
-    def __init__(self, headless=False):
+    def __init__(self, headless=False, cookies=None):
         # Setup Chrome options
         self.chrome_options = Options()
         if headless:
@@ -28,8 +39,41 @@ class WhopTradingScraper:
         self.driver = webdriver.Chrome(options=self.chrome_options)
         self.wait = WebDriverWait(self.driver, 10)
         
+        # Add cookies if provided
+        if cookies:
+            self.add_cookies(cookies)
+        
         # Data storage
         self.communities = []
+    
+    def add_cookies(self, cookies):
+        """Add cookies to the browser session"""
+        # First navigate to the domain
+        self.driver.get("https://whop.com")
+        time.sleep(2)  # Wait for page to load
+        
+        # Add each cookie to the session
+        for cookie in cookies:
+            # Skip cookies that might cause issues
+            if 'sameSite' in cookie and cookie['sameSite'] not in ['Strict', 'Lax', 'None']:
+                cookie['sameSite'] = 'Lax'  # Default to Lax if invalid
+                
+            try:
+                # Remove extra attributes that Selenium doesn't accept
+                clean_cookie = {k: v for k, v in cookie.items() 
+                               if k in ['name', 'value', 'domain', 'path', 'secure', 'httpOnly', 'expiry', 'sameSite']}
+                
+                # Convert 'httpOnly' to 'httpOnly' if present
+                if 'httpOnly' in clean_cookie:
+                    clean_cookie['httpOnly'] = clean_cookie['httpOnly']
+                
+                self.driver.add_cookie(clean_cookie)
+            except Exception as e:
+                print(f"Error adding cookie {cookie.get('name')}: {e}")
+        
+        # Refresh the page to apply cookies
+        self.driver.refresh()
+        time.sleep(2)
     
     def navigate_to_leaderboard_page(self, page_num=1):
         """Navigate to a specific page of the Whop trading leaderboard"""
@@ -611,9 +655,52 @@ class WhopTradingScraper:
         """Close the browser"""
         self.driver.quit()
 
-def main():
-    # Initialize the scraper
-    scraper = WhopTradingScraper(headless=False)  # Set to True for headless mode
+async def load_cookies_and_login():
+    """
+    Use Browser-Use to handle login and get cookies for Selenium.
+    
+    Returns:
+        List of cookie dictionaries or None if login failed
+    """
+    print("Starting login process with Browser-Use...")
+    
+    # Check if we already have cookies
+    if os.path.exists(COOKIES_FILE):
+        try:
+            # Try to load existing cookies
+            with open(COOKIES_FILE, "r") as f:
+                cookies = json.load(f)
+            print("Found existing cookies. Will try to use them.")
+            return cookies
+        except Exception as e:
+            print(f"Error loading existing cookies: {e}")
+    
+    # If we don't have cookies or loading failed, start the login process
+    try:
+        # Run the login handler to get fresh cookies
+        await login_handler.main()
+        
+        # Check if the login was successful by looking for cookies file
+        if os.path.exists(COOKIES_FILE):
+            with open(COOKIES_FILE, "r") as f:
+                cookies = json.load(f)
+            print("Successfully logged in and saved cookies.")
+            return cookies
+        else:
+            print("Login process completed but no cookies were saved.")
+            return None
+    except Exception as e:
+        print(f"Error during login process: {e}")
+        return None
+
+async def main_async():
+    """Async main function that handles login before scraping"""
+    # Handle login and get cookies
+    cookies = await load_cookies_and_login()
+    
+    # Run the scraper with the cookies
+    print("Starting the scraper...")
+    scraper = WhopTradingScraper(headless=False, cookies=cookies)
     
     try:
         # Run the scraping process
@@ -628,6 +715,10 @@ def main():
     finally:
         # Always close the browser
         scraper.close()
+
+def main():
+    """Regular main function that calls the async main"""
+    asyncio.run(main_async())
 
 if __name__ == "__main__":
     main()

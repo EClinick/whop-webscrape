@@ -1,0 +1,51 @@
+[
+    {
+      "domain": "whop.com",
+      "hostOnly": true,
+      "httpOnly": true,
+      "name": "__Host-authjs.csrf-token",
+      "path": "/",
+      "sameSite": "lax",
+      "secure": true,
+      "session": true,
+      "storeId": null,
+      "value": "ea1030fecc47240832dc8cc0542623ba65ebeafaaf43076182a2de9f8918ea2a%7C0835fd014422561d9accad76e7406e6641665775af35d6fb962250cab26890a4"
+    },
+    {
+      "domain": "whop.com",
+      "hostOnly": true,
+      "httpOnly": true,
+      "name": "__Secure-authjs.callback-url",
+      "path": "/",
+      "sameSite": "lax",
+      "secure": true,
+      "session": true,
+      "storeId": null,
+      "value": "https%3A%2F%2Fwhop.com%2F"
+    },
+    {
+      "domain": "whop.com",
+      "hostOnly": true,
+      "httpOnly": true,
+      "name": "__Secure-authjs.session-token",
+      "path": "/",
+      "sameSite": "lax",
+      "secure": true,
+      "session": false,
+      "storeId": null,
+      "value": "eyJhbGciOiJkaXIiLCJlbmMiOiJBMjU2R0NNIn0..5BxS-m-Ym52bMDAV.9kzf8ptvzUvy1PM6LTWFFT-DAo-hgDdFFO1quEZCefR64ucxDRJzccGZ6NWfdr-sYvLgowY9CTmDNvye3gKokOKfMHcd7EhnspnGtc9nje7VB5bWkZSmr8uc1j-TZv092FU4pqmtTVuM8Ck-U630-xxaPabULfLIZcIYIWvdMQyH80gXATfciEdfWWNR4mDju5nxdobKEom9M7s_a_TMznOuFClyIjP3s9Dbk_V0JE8ku_nt4kXpO6fpK3LX5QIGmKtmJM6Mi92H6bLr-eouItnmPB4PW4GtiBs2tscgBvIJ0gpjPcS2iVw3l0yKgwLdAkl3yYoTNiq57w__QNIUzZzD2TF9Rnx4kFL37iapwETIEby4.tRK4D2D6Ql2InL3qgEsH1A"
+    },
+    {
+      "domain": "whop.com",
+      "hostOnly": true,
+      "httpOnly": false,
+      "name": "__Host-whop-core.csrf-token",
+      "path": "/",
+      "sameSite": "strict",
+      "secure": true,
+      "session": true,
+      "storeId": null,
+      "value": "e695bd46-a956-45dc-bde2-71401529b7c6"
+    }
+  ]
+  

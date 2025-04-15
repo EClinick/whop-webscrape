@@ -1,2 +1,22 @@
+# Virtual environment
+venv/
+
+# Data directory (contains cookies and other sensitive info)
+data/
+
+# Log files
+*.log
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# CSV output
+whop_trading_communities.csv
+
 /index.ts
 /package.json
+
+#env
+.env
