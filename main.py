@@ -11,6 +11,9 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchElementException, StaleElementReferenceException
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.common.keys import Keys
+import os
+import sys
+from dotenv import load_dotenv
 
 class WhopTradingScraper:
     def __init__(self, headless=False):
@@ -30,6 +33,138 @@ class WhopTradingScraper:
         
         # Data storage
         self.communities = []
+        
+        # Cookies path
+        self.cookies_file = "whop_cookies.pkl"
+    
+    def login(self, email=None):
+        """Log in to Whop and save cookies for future sessions"""
+        load_dotenv()
+        if email is None:
+            email = os.getenv('USERNAME')
+        print("Starting login process...")
+        self.driver.get("https://whop.com/")
+        time.sleep(3)  # Let the page load
+
+        # Try to load cookies first
+        if os.path.exists(self.cookies_file):
+            print(f"Found {self.cookies_file}, attempting to load cookies...")
+            cookies_loaded = self._load_cookies()
+            if cookies_loaded:
+                print("Cookies loaded, refreshing page to apply session...")
+                self.driver.refresh()
+                time.sleep(3)
+                # Check if already logged in
+                try:
+                    self.driver.find_element(By.XPATH, "//header//button[contains(@class, 'rounded-full')]")
+                    print("Session restored from cookies! Already logged in.")
+                    return True
+                except NoSuchElementException:
+                    print("Cookies did not restore session. Proceeding with manual login...")
+            else:
+                print("Failed to load cookies. Proceeding with manual login...")
+        else:
+            print("No cookies file found. Proceeding with manual login...")
+
+        # Manual login flow
+        try:
+            print("Looking for login button...")
+            login_button = self.wait.until(
+                EC.element_to_be_clickable((By.XPATH, "//button[contains(text(), 'Log in')]"))
+            )
+            print("Clicking login button...")
+            login_button.click()
+            time.sleep(2)  # Wait for login form to appear
+            
+            # Prompt for email if not provided
+            if not email:
+                email = input("Enter your Whop email address: ")
+            print(f"Entering email: {email}")
+            email_input = self.wait.until(
+                EC.presence_of_element_located((By.ID, "email"))
+            )
+            email_input.clear()
+            email_input.send_keys(email)
+            email_input.send_keys(Keys.RETURN)
+            print("Submitted email, waiting for MFA code input...")
+            print("Please enter the MFA code sent to your email within 60 seconds...")
+            time.sleep(60)  # Wait for user to input MFA code
+            print("Checking if login was successful...")
+            try:
+                self.wait.until(
+                    EC.presence_of_element_located((By.XPATH, "//header//button[contains(@class, 'rounded-full')]"))
+                )
+                print("Login successful!")
+                self._save_cookies()
+                return True
+            except TimeoutException:
+                print("Login verification failed. Please check if MFA code was entered correctly.")
+                return False
+        except TimeoutException:
+            print("Login process failed - couldn't find login elements")
+            return False
+        except Exception as e:
+            print(f"Login error: {e}")
+            return False
+    
+    def _save_cookies(self):
+        """Save browser cookies to file"""
+        import pickle
+        import os
+        
+        cookies = self.driver.get_cookies()
+        if cookies:
+            print(f"Saving {len(cookies)} cookies to {self.cookies_file}")
+            with open(self.cookies_file, 'wb') as f:
+                pickle.dump(cookies, f)
+    
+    def _load_cookies(self):
+        """Load cookies from file if available"""
+        import pickle
+        import os
+        
+        if os.path.exists(self.cookies_file):
+            print(f"Loading cookies from {self.cookies_file}")
+            
+            try:
+                # Make sure we're on the right domain before adding cookies
+                current_url = self.driver.current_url
+                if "whop.com" not in current_url:
+                    print("Navigating to whop.com before loading cookies...")
+                    self.driver.get("https://whop.com/")
+                    time.sleep(2)
+                
+                with open(self.cookies_file, 'rb') as f:
+                    cookies = pickle.load(f)
+                
+                cookie_count = 0
+                # Add cookies to browser one by one with error handling
+                for cookie in cookies:
+                    # Remove problematic keys that might cause issues
+                    for key in ['expiry', 'sameSite']:
+                        if key in cookie:
+                            del cookie[key]
+                    
+                    # Some cookies may be specific to paths/domains, skip failures
+                    try:
+                        self.driver.add_cookie(cookie)
+                        cookie_count += 1
+                    except Exception as e:
+                        print(f"Could not add cookie {cookie.get('name', 'unknown')}: {e}")
+                        continue
+                
+                print(f"Successfully loaded {cookie_count} of {len(cookies)} cookies")
+                return cookie_count > 0
+            except Exception as e:
+                print(f"Error loading cookies: {e}")
+                # If cookies are corrupt or causing issues, delete the file
+                print(f"Removing problematic cookies file: {self.cookies_file}")
+                try:
+                    os.remove(self.cookies_file)
+                except:
+                    pass
+                return False
+        return False
     
     def navigate_to_leaderboard_page(self, page_num=1):
         """Navigate to a specific page of the Whop trading leaderboard"""
@@ -40,8 +175,9 @@ class WhopTradingScraper:
         
         # Check if page loaded successfully by looking for content
         try:
+            #//*[@id="discover"]/div/div/div[3]/ul
             self.wait.until(
-                EC.presence_of_element_located((By.XPATH, '//*[@id="main-content-with-header"]'))
+                EC.presence_of_element_located((By.XPATH, '//*[@id="discover"]/div/div/div[3]/ul'))
             )
             return True
         except TimeoutException:
@@ -54,12 +190,12 @@ class WhopTradingScraper:
         try:
             # Wait for the main container to load
             self.wait.until(
-                EC.presence_of_element_located((By.XPATH, '//*[@id="main-content-with-header"]'))
+                EC.presence_of_element_located((By.XPATH, '//*[@id="discover"]/div/div/div[3]/ul'))
             )
             
             # Find all community cards
             community_cards = self.driver.find_elements(
-                By.XPATH, '//*[@id="main-content-with-header"]/div[3]/ul/div'
+                By.XPATH, '//*[@id="discover"]/div/div/div[3]/ul/div'
             )
             
             community_links = []
@@ -457,6 +593,27 @@ class WhopTradingScraper:
         Args:
             max_pages (int, optional): Maximum number of pages to scrape. If None, scrapes all pages.
         """
+        # Try to load cookies first
+        try:
+            print("Checking for saved session...")
+            cookies_loaded = self._load_cookies()
+            if cookies_loaded:
+                print("Cookies loaded successfully. Refreshing page to apply session...")
+                # Refresh page to apply cookies
+                self.driver.refresh()
+                time.sleep(3)
+                
+                # Verify login status after loading cookies
+                try:
+                    self.driver.find_element(By.XPATH, "//header//button[contains(@class, 'rounded-full')]")
+                    print("Session restoration successful - user is logged in!")
+                except NoSuchElementException:
+                    print("Session restoration failed - cookies did not restore login state.")
+            else:
+                print("No saved session found or cookies couldn't be loaded.")
+        except Exception as e:
+            print(f"Error loading session: {e}")
+        
         page_num = 1
         all_community_data = []
         all_social_data = {}
@@ -612,19 +769,43 @@ class WhopTradingScraper:
         self.driver.quit()
 
 def main():
-    # Initialize the scraper
+    # Parse command-line argument for max_pages
+    if len(sys.argv) > 1:
+        try:
+            max_pages = int(sys.argv[1])
+        except ValueError:
+            print(f"Invalid argument for max_pages: {sys.argv[1]}. Using default of 300.")
+            max_pages = 300
+    else:
+        max_pages = 300
+
     scraper = WhopTradingScraper(headless=False)  # Set to True for headless mode
     
     try:
-        # Run the scraping process
-        scraper.scrape_all_communities(max_pages=200)
+        # Only call login; it will handle cookies and prompt for email if needed
+        login_success = False
+        max_attempts = 3
+        attempts = 0
+        while not login_success and attempts < max_attempts:
+            attempts += 1
+            login_success = scraper.login(None)  # Pass None, let login() prompt if needed
+            if not login_success and attempts < max_attempts:
+                print(f"Login failed. You have {max_attempts - attempts} attempts remaining.")
         
-        # Save the data
-        scraper.save_to_csv()
-        
-        print("Scraping completed successfully!")
+        if login_success:
+            # Run the scraping process
+            scraper.scrape_all_communities(max_pages=max_pages)
+            
+            # Save the data
+            scraper.save_to_csv()
+            
+            print("Scraping completed successfully!")
+        else:
+            print("Failed to log in after multiple attempts. Cannot proceed with scraping.")
     except Exception as e:
         print(f"An error occurred: {e}")
+        import traceback
+        traceback.print_exc()
     finally:
         # Always close the browser
         scraper.close()

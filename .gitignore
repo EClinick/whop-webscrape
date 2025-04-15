@@ -1,2 +1,20 @@
 /index.ts
 /package.json
+
+#All Venv related files and folders
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pyw
+*.pyz
+
+
+data/
+
+.pkl
+
+.env
+
+.csv
