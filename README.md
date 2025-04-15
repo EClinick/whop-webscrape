@@ -8,3 +8,8 @@ run
 python main.py
 ```
 
+Install requirements
+```bash
+pip install -r requirements.txt
+```
+
