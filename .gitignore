@@ -15,6 +15,9 @@ data/
 
 .pkl
 
+#ignore whop_cookies.pkl
+whop_cookies.pkl
+
 .env
 
 .csv
